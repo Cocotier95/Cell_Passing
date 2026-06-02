@@ -38,7 +38,7 @@ def save_to_sheets(new_row_df):
 
 # --- INITIALISATION ---
 st.set_page_config(page_title="HaCaT T75 Cloud", layout="centered")
-st.title("🧫 Assistant HaCaT T75 & Google Sheets")
+st.title("🧫 Hacat Passing Assistant")
 
 # Connexion native Streamlit <-> Google Sheets
 try:
