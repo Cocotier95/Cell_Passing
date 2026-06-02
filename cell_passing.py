@@ -77,8 +77,11 @@ st.header("1. Données du passage actuel")
 
 col_p1, col_p2 = st.columns(2)
 with col_p1:
-    # Option demandée : Numéro du passage (incrémenté automatiquement basé sur le Sheets)
-    passage_actuel = st.number_input("Numéro du passage actuel (P)", min_value=1, value=max(1, commit_p := d_num := dernier_p_num + 1), step=1)
+    # On calcule d'abord le numéro suggéré de manière propre
+    passage_suggere = max(1, dernier_p_num + 1)
+    
+    # On l'injecte simplement dans l'application
+    passage_actuel = st.number_input("Numéro du passage actuel (P)", min_value=1, value=passage_suggere, step=1)
     confluence_visuelle = st.slider("Confluence visuelle (%)", 10, 100, 80, 5)
 
 with col_p2:
