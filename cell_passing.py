@@ -6,62 +6,50 @@ import numpy as np
 # --- CONFIGURATION FIXE (PROTOCOLE T75) ---
 SURFACE_T75 = 75 
 DENSITE_MAX_HACAT = 133333 
-CELLULES_CIBLE_80 = (SURFACE_T75 * DENSITE_MAX_HACAT) * 0.80 # 8,000,000 cellules
+CELLULES_CIBLE_80 = (SURFACE_T75 * DENSITE_MAX_HACAT) * 0.80 # Exactement 8,000,000 cellules
 VOLUME_FALCON = 12.0 
 TEMPS_ADHERENCE_H = 18.0 
 
 # --- CONFIGURATION GOOGLE SHEETS ---
-# ⚠️ REMPLACE CETTE URL PAR CELLE DE TON GOOGLE SHEETS CORRESPONDANT
+# ⚠️ METS TON PROPRE LIEN GOOGLE SHEETS ICI (BIEN EN MODE "ÉDITEUR" / PARTAGE PUBLIC)
 URL_SHEET = "https://docs.google.com/spreadsheets/d/1uvB0Apu9GReQ79lWQmImtdcayQ55dwMq_0EfLpz6urE/edit?usp=sharing"
 
-# Transformation de l'URL pour la lecture directe en CSV par Pandas
+# Transformation automatique de l'URL pour la lecture brute en CSV par Pandas
 CSV_URL = URL_SHEET.replace("/edit?usp=sharing", "/export?format=csv")
 
 def load_data_from_sheets():
     try:
         df = pd.read_csv(CSV_URL)
-        df["Date"] = pd.to_datetime(df["Date"]).dt.date
+        if "Date" in df.columns:
+            df["Date"] = pd.to_datetime(df["Date"]).dt.date
         return df
     except Exception:
-        # Si la feuille est vide ou inaccessible, on crée un DataFrame structurel
+        # Structure de secours si la feuille Google Sheets est encore totalement vide
         return pd.DataFrame(columns=[
             "Date", "Passage_Numero", "Confluence_Visuelle", "Concentration_Mesuree", 
             "Cellules_Totales_Recoltees", "Cellules_Ensemencees", 
             "Jours_Attendus", "DT_Calcule"
         ])
 
-def save_to_sheets(new_row_df):
-    # Pour écrire de manière ultra-simple sans clés API Google complexes (qui nécessitent un compte cloud pro),
-    # on va générer un lien de soumission ou utiliser les secrets de Streamlit.
-    # Dans un premier temps, Streamlit offre un outil natif ultra-sécurisé appelé st.connection("gsheets")
-    pass
-
-# --- INITIALISATION ---
+# --- INITIALISATION DE L'APP ---
 st.set_page_config(page_title="HaCaT T75 Cloud", layout="centered")
-st.title("🧫 Hacat Passing Assistant")
+st.title("🧫 Assistant HaCaT T75 & Google Sheets")
 
-# Connexion native Streamlit <-> Google Sheets
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    df_logs = conn.read(spreadsheet=URL_SHEET)
-    if not df_logs.empty and "Date" in df_logs.columns:
-        df_logs["Date"] = pd.to_datetime(df_logs["Date"]).dt.date
-except Exception:
-    # Alternative de secours si la connexion gsheets n'est pas encore configurée dans Streamlit Cloud
-    df_logs = load_data_from_sheets()
+# Chargement initial des données
+df_logs = load_data_from_sheets()
 
-# --- APPRENTISSAGE ---
-doubling_time_h = 26.0 
+# --- APPRENTISSAGE DU TEMPS DE DOUBLEMENT REEL ---
+doubling_time_h = 26.0 # Valeur de base (littérature)
 dernier_p_num = 0
 
 if not df_logs.empty:
     if "DT_Calcule" in df_logs.columns:
         valid_dt = pd.to_numeric(df_logs["DT_Calcule"], errors='coerce').dropna()
-        valid_dt = valid_dt[valid_dt > 10]
+        valid_dt = valid_dt[valid_dt > 10] # On exclut les valeurs aberrantes
         if not valid_dt.empty:
             doubling_time_h = valid_dt.mean()
     
-    # Récupération automatique du dernier numéro de passage pour proposer le suivant
+    # Détection automatique du dernier passage pour incrémenter le compteur
     if "Passage_Numero" in df_logs.columns:
         try:
             dernier_p_num = int(pd.to_numeric(df_logs["Passage_Numero"]).max())
@@ -77,11 +65,9 @@ st.header("1. Données du passage actuel")
 
 col_p1, col_p2 = st.columns(2)
 with col_p1:
-    # On calcule d'abord le numéro suggéré de manière propre
+    # Calcul propre du numéro suggéré pour éviter les erreurs de syntaxe
     passage_suggere = max(1, dernier_p_num + 1)
-    
-    # On l'injecte simplement dans l'application
-    passage_actuel = st.number_input("Numéro du passage actuel (P)", min_value=1, value=passage_suggere, step=1)
+    passage_actuel = st.number_input("Numéro du passage actuel (P)", min_value=1, value=int(passage_suggere), step=1)
     confluence_visuelle = st.slider("Confluence visuelle (%)", 10, 100, 80, 5)
 
 with col_p2:
@@ -94,28 +80,30 @@ with col_p3:
 with col_p4:
     prochain_passage_date = st.date_input("Date du prochain passage", datetime.date.today() + datetime.timedelta(days=3))
 
-# --- CALCULS ---
+# --- CALCULS DE CINETIQUE ---
 heures_totales = (prochain_passage_date - datetime.date.today()).days * 24
 heures_proliferation_effective = heures_totales - TEMPS_ADHERENCE_H
 
 if heures_proliferation_effective <= 0:
-    st.error("⚠️ Intervalle trop court pour permettre l'adhérence.")
+    st.error("⚠️ L'intervalle de temps choisi est trop court pour permettre l'adhérence et la multiplication des cellules.")
 else:
+    # Calcul de l'inoculum nécessaire
     nb_cycles_division = heures_proliferation_effective / doubling_time_h
     cellules_a_ensemencer = CELLULES_CIBLE_80 / (2 ** nb_cycles_division)
     
+    # Volumes pratiques
     vol_a_prelever_ml = cellules_a_ensemencer / concentration
     vol_milieu_frais_ml = vol_final - vol_a_prelever_ml
     ratio_cellulaire = (vol_a_prelever_ml / vol_final) * 100
 
-    # --- RECOMMANDATIONS ---
+    # --- RECOMMANDATIONS ET SÉCURITÉ ---
     st.write("---")
     st.header(f"📋 Recette pour le passage P{passage_actuel}")
     
     if ratio_cellulaire < 10.0:
         st.error(f"🚨 **Attention : Ratio sous les 10% ({ratio_cellulaire:.1f}%)**")
         vol_final_ajuste = vol_a_prelever_ml / 0.10
-        st.info(f"💡 **Conseil :** Passez le volume final à **{vol_final_ajuste:.1f} mL** pour tricher sur le ratio, ou centrifugez le culot cellulaire.")
+        st.info(f"💡 **Conseil :** Passez le volume final à **{vol_final_ajuste:.1f} mL** pour maintenir un ratio de 10% de suspension, ou procédez à une centrifugation du culot cellulaire pour éliminer l'excès de trypsine.")
     else:
         st.success(f"✅ **Ratio optimal ({ratio_cellulaire:.1f}%)**")
 
@@ -124,15 +112,15 @@ else:
     c2.metric("Milieu neuf", f"{vol_milieu_frais_ml:.2f} mL")
     c3.metric("Inoculum requis", f"{cellules_a_ensemencer:,.0f} cell")
 
-    # --- ENREGISTREMENT DANS GOOGLE SHEETS ---
+    # --- ENREGISTREMENT ET ENVOI ---
     st.write("---")
     if st.button(f"💾 Envoyer P{passage_actuel} vers Google Sheets"):
         
         cellules_totales_falcon = concentration * VOLUME_FALCON
         dt_effectif = np.nan
         
+        # Calcul inverse du temps de doublement réel du cycle précédent
         if not df_logs.empty:
-            # On trie par date pour être sûr d'avoir le dernier historique
             df_tri = df_logs.sort_values(by="Date")
             dernier_passage = df_tri.iloc[-1]
             try:
@@ -148,6 +136,7 @@ else:
             except:
                 pass
 
+        # Création de la nouvelle ligne de données
         new_entry = pd.DataFrame([{
             "Date": datetime.date.today().strftime("%Y-%m-%d"),
             "Passage_Numero": int(passage_actuel),
@@ -159,18 +148,19 @@ else:
             "DT_Calcule": float(dt_effectif if not np.isnan(dt_effectif) else doubling_time_h)
         }])
         
-        # Envoi au Google Sheets via la connexion Streamlit Cloud
+        # Injection dans le Google Sheets via la bibliothèque intégrée
         try:
+            conn_write = st.connection("gsheets", type="st_gsheets_connection.GoogleSheetsConnection")
             df_updated = pd.concat([df_logs, new_entry], ignore_index=True)
-            conn.update(spreadsheet=URL_SHEET, data=df_updated)
-            st.success(f"Passage P{passage_actuel} enregistré avec succès dans Google Sheets !")
+            conn_write.update(spreadsheet=URL_SHEET, data=df_updated)
+            st.success(f"Passage P{passage_actuel} enregistré avec succès !")
             st.rerun()
         except Exception as e:
-            st.error(f"Erreur d'écriture. Avez-vous bien mis le lien en mode 'Éditeur' ? Détails : {e}")
+            st.error(f"Erreur lors de la mise à jour du Google Sheets. Détails : {e}")
 
-# --- HISTORIQUE DEPUIS LE CLOUD ---
+# --- AFFICHAGE DE L'HISTORIQUE ---
 st.header("📜 Historique synchronisé (Google Sheets)")
 if not df_logs.empty:
     st.dataframe(df_logs.tail(10))
 else:
-    st.info("Aucune donnée détectée dans le Google Sheets.")
+    st.info("Aucune donnée enregistrée dans le Google Sheets pour le moment.")
