@@ -9,7 +9,7 @@ SURFACE_T75 = 75
 DENSITE_MAX_HACAT = 133333 
 CELLULES_CIBLE_80 = (SURFACE_T75 * DENSITE_MAX_HACAT) * 0.80 
 VOLUME_FALCON = 12.0 
-TEMPS_ADHERENCE_H = 18.0 
+TEMPS_ADHERENCE_H = 18.0
 
 # --- CONFIGURATION LIENS GOOGLE ---
 # 1. Mets ici ton lien Google Sheets en mode "Tous les utilisateurs disposant du lien : TÉLÉSPECTATEUR"
@@ -29,7 +29,6 @@ FORM_ENTRIES = {
     "Jours_Attendus": "entry.777",
     "DT_Calcule": "entry.888"
 }
-
 # --- LECTURE SÉCURISÉE ---
 CSV_URL = URL_SHEET.replace("/edit?usp=sharing", "/export?format=csv")
 
@@ -153,7 +152,9 @@ else:
         try:
             # Envoi direct par requête HTTP POST (invisible et instantané)
             response = requests.post(FORM_URL, data=form_data)
-            if response.statusIterable or response.status_code == 200:
+            
+            # C'EST ICI QUE LA CORRECTION A ÉTÉ APPORTÉE :
+            if response.status_code == 200:
                 st.success(f"Passage P{passage_actuel} envoyé au Cloud !")
                 st.rerun()
             else:
