@@ -138,27 +138,33 @@ else:
             except:
                 pass
 
-        # Préparation du dictionnaire pour le formulaire Google
+   # Préparation du dictionnaire (on force tout en texte pour éviter les rejets)
         form_data = {
             FORM_ENTRIES["Date"]: datetime.date.today().strftime("%Y-%m-%d"),
-            FORM_ENTRIES["Passage_Numero"]: int(passage_actuel),
-            FORM_ENTRIES["Confluence_Visuelle"]: int(confluence_visuelle),
-            FORM_ENTRIES["Concentration_Mesuree"]: float(concentration),
-            FORM_ENTRIES["Cellules_Totales_Recoltees"]: float(cellules_totales_falcon),
-            FORM_ENTRIES["Cellules_Ensemencees"]: float(cellules_a_ensemencer),
-            FORM_ENTRIES["Jours_Attendus"]: int((prochain_passage_date - datetime.date.today()).days),
-            FORM_ENTRIES["DT_Calcule"]: float(dt_effectif if not np.isnan(dt_effectif) else doubling_time_h)
+            FORM_ENTRIES["Passage_Numero"]: str(int(passage_actuel)),
+            FORM_ENTRIES["Confluence_Visuelle"]: str(int(confluence_visuelle)),
+            FORM_ENTRIES["Concentration_Mesuree"]: str(float(concentration)),
+            FORM_ENTRIES["Cellules_Totales_Recoltees"]: str(float(cellules_totales_falcon)),
+            FORM_ENTRIES["Cellules_Ensemencees"]: str(float(cellules_a_ensemencer)),
+            FORM_ENTRIES["Jours_Attendus"]: str(int((prochain_passage_date - datetime.date.today()).days)),
+            FORM_ENTRIES["DT_Calcule"]: str(float(dt_effectif if not np.isnan(dt_effectif) else doubling_time_h))
+        }
+        
+        # Astuce : Le "déguisement" qui fait croire à Google que c'est un iPhone
+        headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+            "Referer": "https://docs.google.com/"
         }
         
         try:
-            # Envoi direct par requête HTTP POST (invisible et instantané)
-            response = requests.post(FORM_URL, data=form_data)
+            # Envoi direct avec notre faux navigateur
+            response = requests.post(FORM_URL, data=form_data, headers=headers)
             
             if response.status_code == 200:
                 st.success(f"Passage P{passage_actuel} envoyé au Cloud !")
                 st.rerun()
             else:
-                st.error(f"Une erreur est survenue. Code Google : {response.status_code}")
+                st.error(f"Une erreur est survenue. Code : {response.status_code}")
         except Exception as e:
             st.error(f"Erreur d'envoi : {e}")
 
