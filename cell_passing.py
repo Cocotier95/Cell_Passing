@@ -12,23 +12,24 @@ VOLUME_FALCON = 12.0
 TEMPS_ADHERENCE_H = 18.0
 
 # --- CONFIGURATION LIENS GOOGLE ---
-# 1. Mets ici ton lien Google Sheets en mode "Tous les utilisateurs disposant du lien : TÉLÉSPECTATEUR"
+# 1. Mets ici ton lien Google Sheets en mode "Tous les utilisateurs disposant du lien : TÉLÉSPECTATEUR" (ou ÉDITEUR)
 URL_SHEET = "https://docs.google.com/spreadsheets/d/1uvB0Apu9GReQ79lWQmImtdcayQ55dwMq_0EfLpz6urE/edit?usp=sharing"
 
-# 2. Base de l'URL de ton Google Forms (s'arrête juste avant /viewform...)
+# 2. Base de l'URL de ton Google Forms
 FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSfThAWozhMyfeYS6zKZUWyNB54hm9rQcsi7qmVXuZL1rMeXew/formResponse"
 
-# 3. Remplace les chiffres ci-dessous par les numéros "entry.XXXXX" trouvés dans ton lien pré-rempli
+# 3. Tes VRAIS numéros entry de formulaire
 FORM_ENTRIES = {
-    "Date": "entry.111",
-    "Passage_Numero": "entry.2222",
-    "Confluence_Visuelle": "entry.333",
-    "Concentration_Mesuree": "entry.444",
-    "Cellules_Totales_Recoltees": "entry.555",
-    "Cellules_Ensemencees": "entry.666",
-    "Jours_Attendus": "entry.777",
-    "DT_Calcule": "entry.888"
+    "Date": "entry.1678358877",
+    "Passage_Numero": "entry.1885273356",
+    "Confluence_Visuelle": "entry.1174750434",
+    "Concentration_Mesuree": "entry.729984777",
+    "Cellules_Totales_Recoltees": "entry.78785563",
+    "Cellules_Ensemencees": "entry.486212635",
+    "Jours_Attendus": "entry.363673448",
+    "DT_Calcule": "entry.702380917"
 }
+
 # --- LECTURE SÉCURISÉE ---
 CSV_URL = URL_SHEET.replace("/edit?usp=sharing", "/export?format=csv")
 
@@ -153,12 +154,11 @@ else:
             # Envoi direct par requête HTTP POST (invisible et instantané)
             response = requests.post(FORM_URL, data=form_data)
             
-            # C'EST ICI QUE LA CORRECTION A ÉTÉ APPORTÉE :
             if response.status_code == 200:
                 st.success(f"Passage P{passage_actuel} envoyé au Cloud !")
                 st.rerun()
             else:
-                st.error("Une erreur est survenue lors de l'envoi.")
+                st.error(f"Une erreur est survenue. Code Google : {response.status_code}")
         except Exception as e:
             st.error(f"Erreur d'envoi : {e}")
 
